@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-bg: #0e1110;
+  --color-surface: #171c1a;
+  --color-raised: #1e2522;
+  --color-fg: #f3f1ea;
+  --color-muted: #8b928c;
+  --color-faint: #5c635e;
+  --color-accent: #c5cdc6;
+  --color-accent-fg: #0e1110;
+  --color-border: #2a312e;
+  --color-danger: #c45c4a;
+  --color-safe: #7a9a86;
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
+
+  --text-bank: clamp(4.25rem, 16vw, 8.25rem);
+  --text-display: clamp(3.25rem, 10vw, 6.5rem);
+  --text-title: clamp(1.5rem, 3vw, 2rem);
+  --text-kicker: 0.75rem;
+
+  --shadow-panel: 0 24px 60px -32px rgb(0 0 0 / 0.55);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-image:
+      radial-gradient(1200px 600px at 50% -10%, rgb(47 74 60 / 0.28), transparent 60%),
+      radial-gradient(800px 400px at 100% 100%, rgb(14 17 16 / 0.9), transparent 50%);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@keyframes bank-pop {
+  from {
+    transform: translateY(4px);
+    opacity: 0.45;
+    filter: blur(2px);
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes die-tumble {
+  0% {
+    transform: rotate(-18deg) scale(0.92);
+  }
+  40% {
+    transform: rotate(12deg) scale(1.04);
+  }
+  70% {
+    transform: rotate(-8deg) scale(1);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes flash-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bust-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
