@@ -1,0 +1,32 @@
+:root {
+  --bg: #0e1110; --surface: #171c1a; --fg: #f3f1ea; --muted: #8b928c;
+  --accent: #c5cdc6; --accent-fg: #0e1110; --border: #2a312e;
+  --serif: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+  --sans: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); }
+body {
+  font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+  padding: calc(env(safe-area-inset-top, 0px) + 40px) calc(env(safe-area-inset-right, 0px) + 20px)
+           calc(env(safe-area-inset-bottom, 0px) + 56px) calc(env(safe-area-inset-left, 0px) + 20px);
+}
+main { max-width: 40rem; margin: 0 auto; }
+a { color: var(--accent); }
+.kicker { font-size: .75rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(2.75rem, 11vw, 4.5rem); line-height: .95; letter-spacing: -.035em; margin: .75rem 0 0; }
+h2 { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; letter-spacing: -.01em; margin: 2.75rem 0 .5rem; }
+h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 .25rem; }
+p, li { color: var(--muted); }
+strong { color: var(--fg); font-weight: 600; }
+.lead { font-size: 1.15rem; line-height: 1.45; margin-top: 1.25rem; }
+.card { margin-top: 1.5rem; border: 1px solid var(--border); background: var(--surface); border-radius: 1rem; padding: 1.25rem 1.25rem .5rem; }
+.card h3 { margin-top: 0; }
+.btn { display: inline-block; margin-top: .5rem; padding: .85rem 1.25rem; border-radius: 1rem; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; }
+ol, ul { padding-left: 1.25rem; }
+li { margin: .35rem 0; }
+table { width: 100%; border-collapse: collapse; margin-top: .75rem; font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: .6rem .5rem; border-top: 1px solid var(--border); color: var(--muted); }
+th { color: var(--fg); font-weight: 600; }
+footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
+footer a { margin-right: 1rem; }
