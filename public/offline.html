@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1110">
+<title>BANK · Offline</title>
+<style>
+  :root {
+    --bg: #0e1110; --surface: #171c1a; --fg: #f3f1ea; --muted: #8b928c;
+    --accent: #c5cdc6; --accent-fg: #0e1110; --border: #2a312e;
+    --serif: "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+    --sans: ui-sans-serif, -apple-system, system-ui, "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    padding: calc(env(safe-area-inset-top, 0px) + 32px) calc(env(safe-area-inset-right, 0px) + 20px)
+             calc(env(safe-area-inset-bottom, 0px) + 40px) calc(env(safe-area-inset-left, 0px) + 20px);
+  }
+  main { max-width: 32rem; margin: 0 auto; }
+  .kicker { font-size: .75rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-family: var(--serif); font-weight: 500; font-size: clamp(3.25rem, 16vw, 6.5rem); line-height: .9; letter-spacing: -.04em; margin: .75rem 0 0; }
+  .lead { margin: 1.5rem 0 0; font-size: 1.125rem; line-height: 1.4; color: var(--muted); }
+  .card { margin-top: 2rem; border: 1px solid var(--border); background: var(--surface); border-radius: 1rem; padding: 1.25rem; }
+  .card h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+  .card p { margin: .5rem 0 0; font-size: .9rem; line-height: 1.5; color: var(--muted); }
+  .btn {
+    display: flex; align-items: center; justify-content: center; width: 100%; min-height: 3.5rem; margin-top: 1rem;
+    border: 0; border-radius: 1rem; background: var(--accent); color: var(--accent-fg);
+    font: 600 1rem var(--sans); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { opacity: .85; }
+  .status { min-height: 1.25rem; margin: .75rem 0 0; font-size: .85rem; color: var(--muted); text-align: center; }
+  h3 { font-family: var(--serif); font-weight: 500; font-size: 1.75rem; letter-spacing: -.01em; margin: 3rem 0 0; }
+  .sub { margin: .5rem 0 0; font-size: .9rem; color: var(--muted); }
+  ol { list-style: none; padding: 0; margin: 2rem 0 0; }
+  li { margin: 0 0 1.5rem; }
+  .num { font-size: .75rem; font-weight: 500; letter-spacing: .18em; color: var(--muted); margin: 0; }
+  li h4 { margin: .25rem 0 0; font-size: 1rem; font-weight: 600; }
+  li p { margin: .25rem 0 0; font-size: .9rem; line-height: 1.6; color: var(--muted); }
+  .note { border: 1px solid var(--border); background: var(--surface); border-radius: 1rem; padding: 1rem; font-size: .9rem; line-height: 1.5; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">Table dice game</p>
+  <h1>BANK</h1>
+  <p class="lead">You're offline right now.</p>
+
+  <section class="card" aria-labelledby="offline-title">
+    <h2 id="offline-title">An internet connection is needed to host or join a table</h2>
+    <p>Hosting a table, joining with a code, and keeping score all run through the live game. Check your Wi-Fi or cellular data, then try again. The rules are below while you wait.</p>
+    <button class="btn" id="retry" type="button">Retry</button>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <h3>How to play</h3>
+  <p class="sub">Quick, loud, and made for a table of two or a hundred.</p>
+  <ol>
+    <li><p class="num">01</p><h4>Object</h4><p>Be the player who banks the most points after 10, 15, or 20 rounds. Most tables play 20.</p></li>
+    <li><p class="num">02</p><h4>Setup</h4><p>Add every name. Choose a scorekeeper — the banker — to run this screen. Each turn uses two dice, shared or one pair each.</p></li>
+    <li><p class="num">03</p><h4>Rolling</h4><p>Play clockwise. Roll both dice. With real dice, enter the total on the pad. With virtual dice, tap Roll and the total is entered for you. That number is added to the shared BANK.</p></li>
+    <li><p class="num">04</p><h4>The first three</h4><p>The first three rolls of every round are safe. A seven is worth 70 and does not end the round. Doubles in these rolls do not double the bank — two fives add 10.</p></li>
+    <li><p class="num">05</p><h4>After that</h4><p>Starting with the fourth roll, a seven busts the bank and ends the round. A number adds that many. Doubles — matching virtual dice, or 2, 12, or the Doubles key — double the whole BANK. The first three rolls never double.</p></li>
+    <li><p class="num">06</p><h4>Banking</h4><p>Entering the roll opens banking. Players can tap BANK on their phones, or the host can tap a name. They take the current pot once this round and sit out. Next roll locks banking until the next number is entered.</p></li>
+    <li><p class="num">07</p><h4>Ending a round</h4><p>A round ends when a seven is rolled after the safe three, or when every player has banked. Then the pot resets and everyone can roll and bank again.</p></li>
+  </ol>
+  <div class="note">House notes from the original table: only the roller calls the number on the dice, and saying the word BANK — even by accident — banks you out of the round.</div>
+  <button class="btn" id="retry2" type="button">Retry connection</button>
+</main>
+<script>
+  (function () {
+    var LIVE_URL = "https://bankgame.grok.me/";
+    var status = document.getElementById("status");
+    function retry() {
+      status.textContent = "Connecting…";
+      window.location.href = LIVE_URL;
+      setTimeout(function () { status.textContent = "Still offline. Check your connection and try again."; }, 8000);
+    }
+    document.getElementById("retry").addEventListener("click", retry);
+    document.getElementById("retry2").addEventListener("click", retry);
+    window.addEventListener("online", retry);
+  })();
+</script>
+</body>
+</html>
