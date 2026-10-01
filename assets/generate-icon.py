@@ -1,3 +1,8 @@
+# NOTE: This script is no longer the app icon source. The icon is now Devon's
+# own design (assets/devon-icon-source.png, copied to icon-only.png/icon.png),
+# and splash.png/splash-dark.png are that icon centered on its #0a0a0a
+# background. Running this script would overwrite those files with the old
+# generated die design; it's kept only for reference.
 """Generates the "BANK! Dice Party Game" app icon and splash images (Pillow + Fraunces font).
 
 Usage: python3 generate-icon.py /path/to/Fraunces-variable.ttf
