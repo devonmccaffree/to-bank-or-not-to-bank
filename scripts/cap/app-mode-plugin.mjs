@@ -20,7 +20,8 @@ const ROOT_ROUTE = /\/src\/routes\/__root\.tsx$/;
 
 const APPENDIX = `
 import __capFontsHref from "/scripts/cap/fonts.css?url";
-import "/src/lib/native-hooks.ts";
+import { installNativeHooks as __capInstallNativeHooks } from "/src/lib/native-hooks.ts";
+__capInstallNativeHooks();
 {
   const __capDrop = /^https:\\/\\/fonts\\.(googleapis|gstatic)\\.com|^\\/__grok\\//;
   const __capFix = (head) => {

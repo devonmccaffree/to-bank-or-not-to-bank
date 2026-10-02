@@ -5,6 +5,9 @@
  *   - Prunes dist-cap/assets/* files nothing in the bundle references. The SSR
  *     environment (only used to prerender the shell) emits PGLite's wasm/data
  *     (~16 MB) there; the client never loads them.
+ *   - Removes web-only public files: __grok/ (Grok's PWA install page assets
+ *     and apple-touch icon, served on the website's /?install=1 page) and the
+ *     social share images (og.jpg, x-banner.jpg).
  *   - Fails if index.html or offline.html is missing, or if index.html still
  *     points at Google Fonts / Grok's PWA chrome.
  */
@@ -33,6 +36,8 @@ const index = readFileSync(join(OUT, "index.html"), "utf8");
 if (/fonts\.googleapis\.com|\/__grok\/|grok-app-builder\/extensions\.js/.test(index)) {
   fail("index.html still references Google Fonts or Grok PWA chrome");
 }
+
+for (const p of ["__grok", "og.jpg", "x-banner.jpg"]) rmSync(join(OUT, p), { recursive: true, force: true });
 
 const files = walk(OUT);
 const corpus = files
