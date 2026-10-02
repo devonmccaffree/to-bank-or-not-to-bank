@@ -6,18 +6,21 @@ import {
   fetchRoom,
   hostBank,
   hostContinue,
+  hostCountdown,
   hostLobby,
+  hostNextRoll,
   hostRematch,
   hostRoll,
   hostSkip,
   hostUndo,
   joinRoom,
+  leaveRoom,
   playerBank,
   setRoomRounds,
   startRoom,
 } from "./room.functions";
 import type { RoomResult, RoomSnapshot } from "./room-types";
-import type { Flash, RoundCount } from "./types";
+import type { DiceMode, Flash, RoundCount } from "./types";
 import { playAdd, playBank, playBust, playDouble, playSafeSeven, playWin, unlockAudio } from "./sounds";
 
 const SESSION_KEY = "bank-table-session";
@@ -36,13 +39,17 @@ type RoomStore = {
   flash: Flash | null;
   error: string | null;
   busy: boolean;
+  diceMode: DiceMode;
   restore: () => Promise<void>;
   openJoin: () => void;
   hostTable: () => Promise<void>;
   join: (code: string, name: string) => Promise<void>;
   setRounds: (rounds: RoundCount) => Promise<void>;
+  setDiceMode: (mode: DiceMode) => void;
   start: () => Promise<void>;
   roll: (sum: number, doubles: boolean) => Promise<void>;
+  nextRoll: () => Promise<void>;
+  startCountdown: () => Promise<void>;
   skip: () => Promise<void>;
   undo: () => Promise<void>;
   next: () => Promise<void>;
@@ -250,6 +257,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
     flash: null,
     error: null,
     busy: false,
+    diceMode: "physical",
     restore: async () => {
       const session = readSession();
       if (!session || get().session) return;
@@ -324,15 +332,25 @@ export const useRoomStore = create<RoomStore>((set, get) => {
         setRoomRounds({ data: { code: session.code, token: session.token, rounds } }),
       );
     },
+    setDiceMode: (diceMode) => set({ diceMode }),
     start: async () => {
       unlockAudio();
-      await hostCall((session) => startRoom({ data: { code: session.code, token: session.token } }));
+      const diceMode = get().diceMode;
+      await hostCall((session) =>
+        startRoom({ data: { code: session.code, token: session.token, diceMode } }),
+      );
     },
     roll: async (sum, doubles) => {
       unlockAudio();
       await hostCall((session) =>
         hostRoll({ data: { code: session.code, token: session.token, sum, doubles } }),
       );
+    },
+    nextRoll: async () => {
+      await hostCall((session) => hostNextRoll({ data: { code: session.code, token: session.token } }));
+    },
+    startCountdown: async () => {
+      await hostCall((session) => hostCountdown({ data: { code: session.code, token: session.token } }));
     },
     skip: async () => {
       await hostCall((session) => hostSkip({ data: { code: session.code, token: session.token } }));
@@ -376,6 +394,12 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       if (session?.role === "host") {
         try {
           await closeRoom({ data: { code: session.code, token: session.token } });
+        } catch {
+          /* already left locally */
+        }
+      } else if (session) {
+        try {
+          await leaveRoom({ data: { code: session.code, token: session.token } });
         } catch {
           /* already left locally */
         }

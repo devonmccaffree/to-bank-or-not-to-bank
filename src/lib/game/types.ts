@@ -6,6 +6,7 @@ export const SAVE_VERSION = 1 as const;
 export type RoundCount = 10 | 15 | 20;
 export type DiceMode = "physical" | "digital";
 export type GamePhase = "playing" | "banking" | "roundEnd" | "gameOver";
+export type BankWindow = "closed" | "open";
 export type Screen = "home" | "setup" | "play" | "how" | "history";
 export type RoundEndReason = "seven" | "allBanked";
 export type FlashKind = "add" | "double" | "bust" | "bank" | "safe";
@@ -44,6 +45,12 @@ export type GameState = {
   roundHistory: RollEvent[];
   diceMode: DiceMode;
   roundEndReason: RoundEndReason | null;
+  /** closed: dice are out. open: the last number is in and players may bank. */
+  bankWindow: BankWindow;
+  /** Server timestamp when a 5-second countdown reaches 0. */
+  countdownEndsAt?: number | null;
+  /** When a busting 7 started the boo countdown. */
+  booStartedAt?: number | null;
 };
 
 export type PastGame = {

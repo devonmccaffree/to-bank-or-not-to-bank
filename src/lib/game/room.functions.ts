@@ -2,14 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   advanceRound,
   applyRoll,
+  closeForRoll,
   confirmBank,
   createGameFromPlayers,
   rematch,
+  removePlayer,
   skipTurn,
+  startCountdown,
+  stripPlayer,
 } from "./engine";
-import type { GameState, RoundCount } from "./types";
+import type { DiceMode, GameState, RoundCount } from "./types";
 import type { RoomResult, RoomSeat, RoomSnapshot, RoomStatus } from "./room-types";
 import { pokeRoom } from "./room-live.server";
+import { withTransaction } from "@/lib/db";
 
 type Payload = { game: GameState | null; undo: GameState[] };
 
@@ -230,15 +235,23 @@ export const joinRoom = createServerFn({ method: "POST" })
     const loaded = await loadRoom(code);
     if (!loaded || loaded.room.status === "closed") return fail("No open table with that code.");
     if (loaded.room.status !== "lobby") return fail("That table has already started.");
-    if (loaded.players.length >= 100) return fail("This table is full.");
-    if (loaded.players.some((p) => p.display_name.toLowerCase() === name.toLowerCase())) {
-      return fail("That name is already at this table.");
-    }
-    const id = uid();
-    const playerToken = uid();
-    const seat = (loaded.players.at(-1)?.seat ?? 0) + 1;
-    const sql = await db();
-    try {
+    const seated = await withTransaction(async (sql): Promise<{ error: string } | { id: string; playerToken: string }> => {
+      const locked = await sql<{ status: string }>`
+        select status from rooms where code = ${code} for update
+      `;
+      const status = locked[0]?.status;
+      if (!status || status === "closed") return { error: "No open table with that code." };
+      if (status !== "lobby") return { error: "That table has already started." };
+      const players = await sql<{ display_name: string; seat: number }>`
+        select display_name, seat from room_players where room_code = ${code} order by seat
+      `;
+      if (players.length >= 100) return { error: "This table is full." };
+      if (players.some((p) => p.display_name.toLowerCase() === name.toLowerCase())) {
+        return { error: "That name is already at this table." };
+      }
+      const id = uid();
+      const playerToken = uid();
+      const seat = (players.at(-1)?.seat ?? 0) + 1;
       await sql`
         insert into room_players (id, room_code, display_name, player_token, seat)
         values (${id}, ${code}, ${name}, ${playerToken}, ${seat})
@@ -248,15 +261,15 @@ export const joinRoom = createServerFn({ method: "POST" })
         set version = version + 1, updated_at = now()
         where code = ${code}
       `;
-    } catch {
-      return fail("Could not join. Try again.");
-    }
+      return { id, playerToken };
+    });
+    if ("error" in seated) return fail(seated.error);
     pokeRoom(code);
     const again = await loadRoom(code);
     if (!again) return fail("No open table with that code.");
-    const snapshot = snapshotFor(again.room, again.players, playerToken);
+    const snapshot = snapshotFor(again.room, again.players, seated.playerToken);
     if (!snapshot) return fail("Could not join.");
-    return { ok: true, snapshot, token: playerToken, playerId: id };
+    return { ok: true, snapshot, token: seated.playerToken, playerId: seated.id };
   });
 
 export async function readRoomForTokens(
@@ -336,10 +349,11 @@ export const setRoomRounds = createServerFn({ method: "POST" })
   });
 
 export const startRoom = createServerFn({ method: "POST" })
-  .validator((input: { code: string; token: string }) => input)
+  .validator((input: { code: string; token: string; diceMode?: DiceMode }) => input)
   .handler(async ({ data }): Promise<RoomResult> => {
     const code = asCode(data?.code);
     if (!code || typeof data?.token !== "string") return fail("Missing table.");
+    const diceMode: DiceMode = data?.diceMode === "digital" ? "digital" : "physical";
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const loaded = await loadRoom(code);
       if (!loaded) return fail("That table is gone.");
@@ -351,6 +365,7 @@ export const startRoom = createServerFn({ method: "POST" })
         game = createGameFromPlayers(
           loaded.players.map((p) => ({ id: p.id, name: p.display_name })),
           asRounds(loaded.room.total_rounds),
+          diceMode,
         );
       } catch (err) {
         return fail(err instanceof Error ? err.message : "Could not start.");
@@ -378,6 +393,31 @@ export const hostRoll = createServerFn({ method: "POST" })
     if (!code || typeof data?.token !== "string" || sum < 2 || sum > 12) return fail("Bad roll.");
     return mutateGame(code, data.token, (game) => {
       const next = applyRoll(game, sum, Boolean(data.doubles));
+      if (next === game) return null;
+      return { game: next };
+    });
+  });
+
+export const hostNextRoll = createServerFn({ method: "POST" })
+  .validator((input: { code: string; token: string }) => input)
+  .handler(async ({ data }): Promise<RoomResult> => {
+    const code = asCode(data?.code);
+    if (!code || typeof data?.token !== "string") return fail("Missing table.");
+    return mutateGame(code, data.token, (game) => {
+      const next = closeForRoll(game);
+      if (next === game) return null;
+      return { game: next };
+    });
+  });
+
+export const hostCountdown = createServerFn({ method: "POST" })
+  .validator((input: { code: string; token: string }) => input)
+  .handler(async ({ data }): Promise<RoomResult> => {
+    const code = asCode(data?.code);
+    if (!code || typeof data?.token !== "string") return fail("Missing table.");
+    const now = Date.now();
+    return mutateGame(code, data.token, (game) => {
+      const next = startCountdown(game, now);
       if (next === game) return null;
       return { game: next };
     });
@@ -493,6 +533,7 @@ export const playerBank = createServerFn({ method: "POST" })
       if (!me) return fail("You are not at this table.");
       const payload = parsePayload(loaded.room.payload);
       if (!payload.game || payload.game.phase !== "playing") return fail("You can't bank right now.");
+      if (payload.game.bankWindow !== "open") return fail("Banking isn't open.");
       const next = confirmBank(payload.game, me.id);
       if (next === payload.game) {
         const snap = snapshotFor(loaded.room, loaded.players, data.token);
@@ -510,4 +551,73 @@ export const playerBank = createServerFn({ method: "POST" })
       return snapshot ? { ok: true, snapshot } : fail("You are not at this table.");
     }
     return fail("The table changed. Try BANK again.");
+  });
+
+export const leaveRoom = createServerFn({ method: "POST" })
+  .validator((input: { code: string; token: string }) => input)
+  .handler(async ({ data }): Promise<RoomResult> => {
+    const code = asCode(data?.code);
+    if (!code || typeof data?.token !== "string") return fail("Missing table.");
+    const result = await withTransaction(
+      async (
+        sql,
+      ): Promise<{ error: string } | { snapshot: RoomSnapshot }> => {
+        const rooms = await sql<RoomRow>`
+          select code, host_token, status, total_rounds, version, payload
+          from rooms
+          where code = ${code}
+          for update
+        `;
+        const room = rooms[0];
+        if (!room || room.status === "closed") return { error: "This table is closed." };
+        const mine = await sql<PlayerRow>`
+          select id, display_name, player_token, seat
+          from room_players
+          where room_code = ${code} and player_token = ${data.token}
+        `;
+        const me = mine[0];
+        if (!me) return { error: "You are not at this table." };
+        await sql`delete from room_players where id = ${me.id}`;
+        const seats = await sql<PlayerRow>`
+          select id, display_name, player_token, seat
+          from room_players
+          where room_code = ${code}
+          order by seat asc
+        `;
+        const payload = parsePayload(room.payload);
+        const nextPayload: Payload = payload.game
+          ? {
+              game: removePlayer(payload.game, me.id),
+              undo: payload.undo.map((frame) => stripPlayer(frame, me.id)),
+            }
+          : payload;
+        const status: RoomStatus =
+          nextPayload.game?.phase === "gameOver" ? "over" : (room.status as RoomStatus);
+        const body = JSON.stringify(nextPayload);
+        const updated = await sql<{ version: number }>`
+          update rooms
+          set payload = ${body}::jsonb,
+              status = ${status},
+              version = version + 1,
+              updated_at = now()
+          where code = ${code}
+          returning version
+        `;
+        const snapshot: RoomSnapshot = {
+          code,
+          status,
+          version: Number(updated[0]?.version ?? Number(room.version) + 1),
+          totalRounds: asRounds(room.total_rounds),
+          players: seats.map((p) => ({ id: p.id, name: p.display_name, seat: p.seat })),
+          game: nextPayload.game,
+          canUndo: nextPayload.undo.length > 0,
+          you: "player",
+          youId: null,
+        };
+        return { snapshot };
+      },
+    );
+    if ("error" in result) return fail(result.error);
+    pokeRoom(code);
+    return { ok: true, snapshot: result.snapshot };
   });

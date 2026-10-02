@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useRoomStore } from "@/lib/game/room-store";
-import type { RoundCount } from "@/lib/game/types";
+import type { DiceMode, RoundCount } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 
 const ROUNDS: RoundCount[] = [10, 15, 20];
@@ -10,6 +10,8 @@ export function HostLobby() {
   const error = useRoomStore((s) => s.error);
   const busy = useRoomStore((s) => s.busy);
   const setRounds = useRoomStore((s) => s.setRounds);
+  const diceMode = useRoomStore((s) => s.diceMode);
+  const setDiceMode = useRoomStore((s) => s.setDiceMode);
   const start = useRoomStore((s) => s.start);
   const leave = useRoomStore((s) => s.leave);
 
@@ -46,6 +48,32 @@ export function HostLobby() {
               )}
             >
               {n}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-kicker font-medium uppercase tracking-[0.18em] text-muted">Dice</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {(
+            [
+              ["physical", "Real dice"],
+              ["digital", "Virtual dice"],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setDiceMode(mode as DiceMode)}
+              className={cn(
+                "h-12 rounded-md border text-sm font-medium",
+                diceMode === mode
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-border bg-raised text-fg",
+              )}
+            >
+              {label}
             </button>
           ))}
         </div>

@@ -15,6 +15,8 @@ function ConnectedTable() {
   const snapshot = useRoomStore((s) => s.snapshot);
   const flash = useRoomStore((s) => s.flash);
   const roll = useRoomStore((s) => s.roll);
+  const nextRoll = useRoomStore((s) => s.nextRoll);
+  const startCountdown = useRoomStore((s) => s.startCountdown);
   const skip = useRoomStore((s) => s.skip);
   const undo = useRoomStore((s) => s.undo);
   const next = useRoomStore((s) => s.next);
@@ -30,6 +32,8 @@ function ConnectedTable() {
     flash,
     canUndo: snapshot.canUndo,
     enterRoll: (sum, doubles) => void roll(sum, doubles),
+    nextRoll: () => void nextRoll(),
+    startCountdown: () => void startCountdown(),
     skip: () => void skip(),
     undo: () => void undo(),
     next: () => void next(),

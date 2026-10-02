@@ -1,8 +1,13 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { BookOpen, Undo2, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BooCue } from "@/components/boo-cue";
+import { Countdown } from "@/components/countdown";
+import { DicePair } from "@/components/dice-pair";
 import { SAFE_ROLLS } from "@/lib/game/types";
-import { isAlwaysDoubles, playerName, winners } from "@/lib/game/engine";
+import { isAlwaysDoubles, nextActivePlayerId, playerName, winners } from "@/lib/game/engine";
+import { playRoll } from "@/lib/game/sounds";
 import { useGameStore } from "@/lib/game/store";
 import { useTable } from "@/components/table-context";
 import { cn } from "@/lib/utils";
@@ -16,6 +21,11 @@ export function PlayScreen() {
   const undo = useGameStore((s) => s.undo);
   const muted = useGameStore((s) => s.muted);
   const enterRollLocal = useGameStore((s) => s.enterRoll);
+  const rollDigital = useGameStore((s) => s.rollDigital);
+  const localDice = useGameStore((s) => s.dice);
+  const localRolling = useGameStore((s) => s.rolling);
+  const nextRollLocal = useGameStore((s) => s.nextRoll);
+  const startCountdownLocal = useGameStore((s) => s.startCountdown);
   const pickBankerLocal = useGameStore((s) => s.pickBanker);
   const skipLocal = useGameStore((s) => s.skip);
   const undoLocal = useGameStore((s) => s.undoLast);
@@ -25,11 +35,16 @@ export function PlayScreen() {
   const abandonLocal = useGameStore((s) => s.abandonGame);
   const toggleMute = useGameStore((s) => s.toggleMute);
   const setScreen = useGameStore((s) => s.setScreen);
+  const [tableDice, setTableDice] = useState<[number, number]>([1, 1]);
+  const [tableRolling, setTableRolling] = useState(false);
+  const [pendingBankId, setPendingBankId] = useState<string | null>(null);
 
   const game = table?.game ?? localGame;
   const flash = table ? table.flash : localFlash;
   const canUndo = table ? table.canUndo : undo.length > 0;
   const enterRoll = table ? table.enterRoll : enterRollLocal;
+  const nextRoll = table ? table.nextRoll : nextRollLocal;
+  const beginCountdown = table ? table.startCountdown : startCountdownLocal;
   const pickBanker = table ? table.bank : pickBankerLocal;
   const skip = table ? table.skip : skipLocal;
   const undoLast = table ? table.undo : undoLocal;
@@ -44,13 +59,54 @@ export function PlayScreen() {
   const safeLeft = Math.max(0, SAFE_ROLLS - game.rollsThisRound);
   const isSafe = game.rollsThisRound < SAFE_ROLLS;
   const canAct = game.phase === "playing";
+  const bankWindow = game.bankWindow ?? "closed";
+  const upcomingId =
+    game.phase === "playing"
+      ? bankWindow === "open"
+        ? game.currentPlayerId
+        : nextActivePlayerId(game, game.currentPlayerId)
+      : null;
+  const upcoming = upcomingId ? playerName(game, upcomingId) : null;
+  const canEnter = canAct && bankWindow === "closed";
+  const virtual = game.diceMode === "digital";
+  const dice = table ? tableDice : localDice;
+  const spinning = table ? tableRolling : localRolling;
   const champs = winners(game);
   const ranked = [...game.players].sort(
     (a, b) => (game.scores[b.id] ?? 0) - (game.scores[a.id] ?? 0),
   );
+  const pendingPlayer = game.players.find((p) => p.id === pendingBankId) ?? null;
+  const confirmBank =
+    pendingPlayer != null &&
+    bankWindow === "open" &&
+    game.bankTotal > 0 &&
+    !game.bankedThisRound.includes(pendingPlayer.id);
+
+  function throwVirtual() {
+    if (!canEnter || spinning) return;
+    if (!table) {
+      rollDigital();
+      return;
+    }
+    const d1 = 1 + Math.floor(Math.random() * 6);
+    const d2 = 1 + Math.floor(Math.random() * 6);
+    if (!muted) playRoll();
+    setTableRolling(true);
+    window.setTimeout(() => {
+      setTableDice([d1, d2]);
+      setTableRolling(false);
+      enterRoll(d1 + d2, d1 === d2);
+    }, 700);
+  }
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 pb-8 pt-4 sm:px-6">
+      <Countdown endsAt={game.countdownEndsAt} full />
+      <BooCue
+        startedAt={game.booStartedAt}
+        active={game.phase === "roundEnd" && game.roundEndReason === "seven"}
+        name={playerName(game, game.lastRoll?.rollerId ?? game.lastRollerId ?? "")}
+      />
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
@@ -100,7 +156,7 @@ export function PlayScreen() {
         </div>
       </header>
 
-      <div className="mt-4 grid flex-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_20rem] lg:items-start">
+      <div className="mt-4 flex flex-1 flex-col gap-6">
         <section className="flex flex-col">
           <p className="text-center text-kicker font-medium uppercase tracking-[0.28em] text-muted">
             Bank
@@ -148,11 +204,27 @@ export function PlayScreen() {
               >
                 {flash.text}
               </p>
-            ) : (
-              <p className="text-sm text-muted">
-                {game.phase === "playing" ? `${roller} rolls` : "\u00a0"}
-              </p>
-            )}
+            ) : null}
+            <p className="text-sm text-muted">
+              {bankWindow === "open"
+                ? "Banking is open"
+                : canAct
+                  ? "Enter the roll. Players can’t bank."
+                  : "\u00a0"}
+            </p>
+            {canAct && upcoming ? (
+              <div className="mt-1 rounded-xl border border-border bg-surface px-5 py-3 text-center">
+                <p className="text-kicker font-medium uppercase tracking-[0.18em] text-muted">
+                  {bankWindow === "open" ? "Next to roll" : "Rolling now"}
+                </p>
+                <p className="font-display mt-1 text-3xl font-medium tracking-tight">
+                  {bankWindow === "open" ? upcoming : roller}
+                </p>
+                {bankWindow === "closed" && upcoming !== roller ? (
+                  <p className="mt-1 text-sm text-muted">Next · {upcoming}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {game.roundHistory.length > 0 ? (
@@ -173,27 +245,29 @@ export function PlayScreen() {
           ) : null}
         </section>
 
-        <aside className="rounded-xl border border-border bg-surface p-3 sm:p-4 lg:row-span-2 lg:sticky lg:top-4">
+        <aside className="order-3 rounded-xl border border-border bg-surface p-3 sm:p-4">
           <div className="flex items-baseline justify-between gap-3 px-1">
             <h2 className="text-kicker font-medium uppercase tracking-[0.18em] text-muted">
               Players
             </h2>
             <p className="text-xs text-faint">
-              {canAct && game.bankTotal > 0 ? `Tap a name to bank ${game.bankTotal}` : "Tap a name to bank"}
+              {bankWindow === "open" && game.bankTotal > 0
+                ? "Tap a name to confirm a bank"
+                : "Banking is closed"}
             </p>
           </div>
-          <ol className="mt-2 max-h-72 overflow-y-auto overscroll-contain lg:max-h-[calc(100dvh-7rem)]">
+          <ol className="mt-2">
             {game.players.map((p) => {
               const banked = game.bankedThisRound.includes(p.id);
               const isTurn = p.id === game.currentPlayerId && game.phase === "playing";
               const gain = game.roundGains[p.id];
-              const canTap = canAct && !banked && game.bankTotal > 0;
+              const canTap = bankWindow === "open" && !banked && game.bankTotal > 0;
               return (
                 <li key={p.id} className="border-t border-border first:border-t-0">
                   <button
                     type="button"
                     disabled={!canTap}
-                    onClick={() => pickBanker(p.id)}
+                    onClick={() => setPendingBankId(p.id)}
                     className={cn(
                       "flex min-h-12 w-full items-center justify-between gap-3 rounded-md px-2 py-2.5 text-left transition-colors duration-150",
                       canTap && "hover:bg-raised",
@@ -226,7 +300,29 @@ export function PlayScreen() {
           </ol>
         </aside>
 
-        <section className="flex flex-col">
+        <section className="order-2 flex flex-col">
+          {virtual ? (
+            <>
+              <DicePair values={dice} rolling={spinning} />
+              <p className="mt-3 text-center text-sm tabular-nums text-muted">
+                {spinning ? "Rolling" : dice[0] + dice[1] > 2 || game.lastRoll ? `${dice[0] + dice[1]}` : "\u00a0"}
+              </p>
+              <Button
+                size="lg"
+                className="mt-4 w-full rounded-lg"
+                disabled={!canEnter || spinning}
+                onClick={throwVirtual}
+              >
+                Roll
+              </Button>
+              <p className="mt-2 text-center text-xs text-faint">
+                {isSafe
+                  ? "First three rolls add the number. Matching dice do not double yet."
+                  : "Matching dice double the bank. A seven ends the round."}
+              </p>
+            </>
+          ) : (
+            <>
           <div className="grid grid-cols-3 gap-2">
             {PAD.map((n) => {
               const isSeven = n === 7;
@@ -236,7 +332,7 @@ export function PlayScreen() {
                   key={n}
                   variant="keypad"
                   size="keypad"
-                  disabled={!canAct}
+                  disabled={!canEnter}
                   onClick={() => enterRoll(n, isAlwaysDoubles(n))}
                   className={cn(
                     "rounded-lg",
@@ -256,7 +352,7 @@ export function PlayScreen() {
             <Button
               variant="keypad"
               size="keypad"
-              disabled={!canAct || isSafe}
+              disabled={!canEnter || isSafe}
               onClick={() => enterRoll(2, true)}
               className="rounded-lg"
             >
@@ -268,18 +364,67 @@ export function PlayScreen() {
               ? "First three rolls add the number. Doubles does not double yet."
               : "A number adds that many. Doubles doubles the bank. 2 and 12 are doubles."}
           </p>
+            </>
+          )}
+
+          {bankWindow === "open" ? (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button
+                size="lg"
+                variant="subtle"
+                className="h-auto min-h-12 whitespace-normal rounded-lg px-2 text-center text-sm leading-tight"
+                onClick={beginCountdown}
+              >
+                5 Second Countdown
+              </Button>
+              <Button size="lg" className="rounded-lg" onClick={nextRoll}>
+                Next roll
+              </Button>
+            </div>
+          ) : null}
 
           <Button
             size="lg"
             variant="subtle"
             className="mt-4 w-full rounded-lg"
-            disabled={!canAct}
+            disabled={!canEnter}
             onClick={skip}
           >
             Skip {roller}
           </Button>
         </section>
       </div>
+
+      {confirmBank && pendingPlayer ? (
+        <Overlay>
+          <p className="text-kicker font-medium uppercase tracking-[0.22em] text-muted">Confirm</p>
+          <h2 className="font-display mt-2 text-3xl font-medium tracking-tight">
+            Bank {pendingPlayer.name}?
+          </h2>
+          <p className="mt-3 text-sm text-muted">
+            They take {game.bankTotal} and sit out the rest of this round.
+          </p>
+          <Button
+            size="lg"
+            className="mt-6 w-full rounded-lg"
+            onClick={() => {
+              const id = pendingPlayer.id;
+              setPendingBankId(null);
+              pickBanker(id);
+            }}
+          >
+            Bank {pendingPlayer.name}
+          </Button>
+          <Button
+            size="lg"
+            variant="subtle"
+            className="mt-2 w-full rounded-lg"
+            onClick={() => setPendingBankId(null)}
+          >
+            Cancel
+          </Button>
+        </Overlay>
+      ) : null}
 
       {game.phase === "roundEnd" ? (
         <Overlay>

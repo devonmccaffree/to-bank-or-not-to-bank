@@ -3,11 +3,13 @@ import { persist } from "zustand/middleware";
 import {
   applyRoll,
   advanceRound,
+  closeForRoll,
   confirmBank,
   createGame,
   playerName,
   rematch,
   skipTurn,
+  startCountdown,
   winners,
 } from "./engine";
 import {
@@ -55,6 +57,8 @@ type GameStore = {
   toggleMute: () => void;
   startGame: () => string | null;
   enterRoll: (sum: number, flaggedDoubles?: boolean) => void;
+  nextRoll: () => void;
+  startCountdown: () => void;
   rollDigital: () => void;
   pickBanker: (playerId: string) => void;
   skip: () => void;
@@ -123,7 +127,7 @@ export const useGameStore = create<GameStore>()(
         unlockAudio();
         try {
           const { setupPlayers, setupRounds, setupDiceMode } = get();
-          const game = createGame(setupPlayers, setupRounds, "physical");
+          const game = createGame(setupPlayers, setupRounds, setupDiceMode);
           set({
             game,
             undo: [],
@@ -163,9 +167,23 @@ export const useGameStore = create<GameStore>()(
           flash,
         });
       },
+      nextRoll: () => {
+        const { game, undo } = get();
+        if (!game) return;
+        const next = closeForRoll(game);
+        if (next === game) return;
+        set({ game: next, undo: pushUndo(undo, game), flash: null });
+      },
+      startCountdown: () => {
+        const { game, undo } = get();
+        if (!game) return;
+        const next = startCountdown(game);
+        if (next === game) return;
+        set({ game: next, undo: pushUndo(undo, game) });
+      },
       rollDigital: () => {
         const { game, rolling, muted } = get();
-        if (!game || rolling || game.phase !== "playing") return;
+        if (!game || rolling || game.phase !== "playing" || (game.bankWindow ?? "closed") !== "closed") return;
         unlockAudio();
         if (!muted) playRoll();
         set({ rolling: true });
@@ -262,8 +280,12 @@ export const useGameStore = create<GameStore>()(
       }),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<GameStore>;
-        const game = saved.game
-          ? { ...saved.game, phase: saved.game.phase === "banking" ? "playing" : saved.game.phase }
+        const game: GameState | null = saved.game
+          ? {
+              ...saved.game,
+              phase: saved.game.phase === "banking" ? "playing" : saved.game.phase,
+              bankWindow: saved.game.bankWindow === "open" ? "open" : "closed",
+            }
           : current.game;
         return { ...current, ...saved, game };
       },

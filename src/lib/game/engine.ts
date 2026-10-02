@@ -81,12 +81,14 @@ export function createGame(
     roundHistory: [],
     diceMode,
     roundEndReason: null,
+    bankWindow: "closed",
   };
 }
 
 export function createGameFromPlayers(
   people: Player[],
   totalRounds: RoundCount,
+  diceMode: DiceMode = "physical",
 ): GameState {
   if (people.length < MIN_PLAYERS) throw new Error(`Need at least ${MIN_PLAYERS} players`);
   const players = people.slice(0, MAX_PLAYERS);
@@ -107,13 +109,15 @@ export function createGameFromPlayers(
     lastRollerId: null,
     lastRoll: null,
     roundHistory: [],
-    diceMode: "physical",
+    diceMode,
     roundEndReason: null,
+    bankWindow: "closed",
   };
 }
 
 export function applyRoll(state: GameState, sum: number, flaggedDoubles: boolean): GameState {
   if (state.phase !== "playing") return state;
+  if ((state.bankWindow ?? "closed") !== "closed") return state;
   if (sum < 2 || sum > 12) return state;
 
   const isSafe = state.rollsThisRound < SAFE_ROLLS;
@@ -171,6 +175,9 @@ export function applyRoll(state: GameState, sum: number, flaggedDoubles: boolean
       lastRollerId: state.currentPlayerId,
       phase: "roundEnd",
       roundEndReason: "seven",
+      bankWindow: "closed",
+      countdownEndsAt: null,
+      booStartedAt: Date.now(),
     };
   }
 
@@ -187,7 +194,20 @@ export function applyRoll(state: GameState, sum: number, flaggedDoubles: boolean
     rollsThisRound: state.rollsThisRound + 1,
     lastRollerId: state.currentPlayerId,
     currentPlayerId: next ?? state.currentPlayerId,
+    bankWindow: "open",
+    countdownEndsAt: null,
   };
+}
+
+export function closeForRoll(state: GameState): GameState {
+  if (state.phase !== "playing") return state;
+  if (state.bankWindow !== "open") return state;
+  return { ...state, bankWindow: "closed", countdownEndsAt: null };
+}
+
+export function startCountdown(state: GameState, now = Date.now()): GameState {
+  if (state.phase !== "playing" || state.bankWindow !== "open") return state;
+  return { ...state, countdownEndsAt: now + 5000 };
 }
 
 export function beginBank(state: GameState): GameState {
@@ -204,7 +224,7 @@ export function cancelBank(state: GameState): GameState {
 }
 
 export function confirmBank(state: GameState, playerId: string): GameState {
-  if (state.phase !== "banking" && state.phase !== "playing") return state;
+  if (state.phase !== "playing" || state.bankWindow !== "open") return state;
   if (state.bankTotal <= 0) return state;
   if (state.bankedThisRound.includes(playerId)) return state;
   if (!state.players.some((p) => p.id === playerId)) return state;
@@ -233,7 +253,7 @@ export function confirmBank(state: GameState, playerId: string): GameState {
 }
 
 export function skipTurn(state: GameState): GameState {
-  if (state.phase !== "playing") return state;
+  if (state.phase !== "playing" || (state.bankWindow ?? "closed") !== "closed") return state;
   const next = nextActivePlayerId(state, state.currentPlayerId);
   if (!next || next === state.currentPlayerId) return state;
   return { ...state, currentPlayerId: next };
@@ -262,6 +282,9 @@ export function advanceRound(state: GameState): GameState {
     roundHistory: [],
     roundEndReason: null,
     currentPlayerId: nextStarter,
+    bankWindow: "closed",
+    countdownEndsAt: null,
+    booStartedAt: null,
   };
 }
 
@@ -282,7 +305,69 @@ export function rematch(state: GameState): GameState {
     lastRoll: null,
     roundHistory: [],
     roundEndReason: null,
+    bankWindow: "closed",
+    countdownEndsAt: null,
+    booStartedAt: null,
   };
+}
+
+export function stripPlayer(state: GameState, playerId: string): GameState {
+  const index = state.players.findIndex((p) => p.id === playerId);
+  if (index < 0) return state;
+  const ids = state.players.map((p) => p.id);
+  const players = state.players.filter((p) => p.id !== playerId);
+  const scores = { ...state.scores };
+  delete scores[playerId];
+  const bankedThisRound = state.bankedThisRound.filter((id) => id !== playerId);
+  const roundGains = { ...state.roundGains };
+  delete roundGains[playerId];
+
+  const nextInOrder = (from: number, skipBanked: boolean): string => {
+    for (let i = 1; i <= ids.length; i++) {
+      const id = ids[(from + i) % ids.length];
+      if (id === playerId) continue;
+      if (!players.some((p) => p.id === id)) continue;
+      if (skipBanked && bankedThisRound.includes(id)) continue;
+      return id;
+    }
+    return players[0]?.id ?? "";
+  };
+
+  let currentPlayerId = state.currentPlayerId;
+  if (currentPlayerId === playerId) {
+    currentPlayerId = nextInOrder(index, true);
+  } else if (!players.some((p) => p.id === currentPlayerId)) {
+    currentPlayerId = players[0]?.id ?? "";
+  }
+
+  let lastRollerId = state.lastRollerId;
+  if (lastRollerId === playerId) {
+    const starter = nextInOrder(index, false);
+    const starterIndex = players.findIndex((p) => p.id === starter);
+    lastRollerId =
+      starterIndex >= 0
+        ? (players[(starterIndex - 1 + players.length) % players.length]?.id ?? null)
+        : null;
+  }
+
+  return {
+    ...state,
+    players,
+    scores,
+    bankedThisRound,
+    roundGains,
+    currentPlayerId,
+    lastRollerId,
+  };
+}
+
+export function removePlayer(state: GameState, playerId: string): GameState {
+  const next = stripPlayer(state, playerId);
+  if (next === state) return state;
+  if (next.phase === "playing" && next.players.length > 0 && activePlayerIds(next).length === 0) {
+    return { ...next, phase: "roundEnd", roundEndReason: "allBanked", bankWindow: "closed" };
+  }
+  return next;
 }
 
 export function playerName(state: GameState, id: string): string {

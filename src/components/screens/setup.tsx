@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MAX_PLAYERS, MIN_PLAYERS, type RoundCount } from "@/lib/game/types";
+import { MAX_PLAYERS, MIN_PLAYERS, type DiceMode, type RoundCount } from "@/lib/game/types";
 import { useGameStore } from "@/lib/game/store";
 import { cn } from "@/lib/utils";
 
@@ -11,8 +11,10 @@ const ROUND_OPTIONS: RoundCount[] = [10, 15, 20];
 export function SetupScreen() {
   const setupPlayers = useGameStore((s) => s.setupPlayers);
   const setupRounds = useGameStore((s) => s.setupRounds);
+  const setupDiceMode = useGameStore((s) => s.setupDiceMode);
   const setSetupPlayers = useGameStore((s) => s.setSetupPlayers);
   const setSetupRounds = useGameStore((s) => s.setSetupRounds);
+  const setSetupDiceMode = useGameStore((s) => s.setSetupDiceMode);
   const setScreen = useGameStore((s) => s.setScreen);
   const startGame = useGameStore((s) => s.startGame);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function SetupScreen() {
         </button>
         <h1 className="font-display mt-3 text-title font-medium tracking-tight">Players</h1>
         <p className="mt-1 text-sm text-muted">
-          Two to one hundred. The first name rolls first, then play goes down the list. Use real dice and enter each total below.
+          Two to one hundred. The first name rolls first, then play goes down the list.
         </p>
       </header>
 
@@ -139,6 +141,37 @@ export function SetupScreen() {
           ))}
         </div>
         <p className="mt-2 text-xs text-faint">Most tables play 20.</p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-kicker font-medium uppercase tracking-[0.18em] text-muted">Dice</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {(
+            [
+              ["physical", "Real dice"],
+              ["digital", "Virtual dice"],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setSetupDiceMode(mode as DiceMode)}
+              className={cn(
+                "h-12 rounded-md border text-sm font-medium transition-colors duration-150",
+                setupDiceMode === mode
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-border bg-raised text-fg hover:border-accent/40",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-faint">
+          {setupDiceMode === "digital"
+            ? "The screen rolls two dice for you."
+            : "Roll real dice and enter each total."}
+        </p>
       </section>
 
       {error ? <p className="mt-6 text-sm text-danger">{error}</p> : null}

@@ -7,6 +7,8 @@ export type TableApi = {
   flash: Flash | null;
   canUndo: boolean;
   enterRoll: (sum: number, doubles: boolean) => void;
+  nextRoll: () => void;
+  startCountdown: () => void;
   skip: () => void;
   undo: () => void;
   next: () => void;

@@ -12,7 +12,7 @@ const STEPS = [
   },
   {
     title: "Rolling",
-    body: "Play clockwise. On a turn, roll both dice and enter the total on the pad. That number is added to the shared BANK.",
+    body: "Play clockwise. Roll both dice. With real dice, enter the total on the pad. With virtual dice, tap Roll and the total is entered for you. That number is added to the shared BANK.",
   },
   {
     title: "The first three",
@@ -20,11 +20,11 @@ const STEPS = [
   },
   {
     title: "After that",
-    body: "Starting with the fourth roll, a seven busts the bank and ends the round. Press a number to add it. Press Doubles — or 2 or 12 — to double the whole BANK. The first three rolls never double.",
+    body: "Starting with the fourth roll, a seven busts the bank and ends the round. A number adds that many. Doubles — matching virtual dice, or 2, 12, or the Doubles key — double the whole BANK. The first three rolls never double.",
   },
   {
     title: "Banking",
-    body: "When someone calls BANK, tap their name on the scoreboard. They take the current pot into their personal score — once per round — then sit out until the next round. There is no limit to how many people bank the same pot. Players who never bank that round score nothing from it.",
+    body: "Entering the roll opens banking. Players can tap BANK on their phones, or the host can tap a name. They take the current pot once this round and sit out. Next roll locks banking until the next number is entered.",
   },
   {
     title: "Ending a round",
