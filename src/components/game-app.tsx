@@ -57,6 +57,7 @@ export function GameApp() {
   const mode = useRoomStore((s) => s.mode);
   const role = useRoomStore((s) => s.session?.role ?? null);
   const restore = useRoomStore((s) => s.restore);
+  const openJoin = useRoomStore((s) => s.openJoin);
 
   useEffect(() => {
     const finish = () => setHydrated();
@@ -66,8 +67,13 @@ export function GameApp() {
   }, [setHydrated]);
 
   useEffect(() => {
+    const join = new URLSearchParams(window.location.search).get("join");
+    if (join && /^\d{4}$/.test(join)) {
+      openJoin();
+      return;
+    }
     void restore();
-  }, [restore]);
+  }, [openJoin, restore]);
 
   if (!hydrated) {
     return (

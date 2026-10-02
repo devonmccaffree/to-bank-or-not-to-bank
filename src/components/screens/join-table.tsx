@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRoomStore } from "@/lib/game/room-store";
@@ -10,6 +10,11 @@ export function JoinTable() {
   const busy = useRoomStore((s) => s.busy);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    const join = new URLSearchParams(window.location.search).get("join") ?? "";
+    if (/^\d{4}$/.test(join)) setCode(join);
+  }, []);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-5 pb-10 pt-8">

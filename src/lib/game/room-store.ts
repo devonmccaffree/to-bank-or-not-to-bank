@@ -25,6 +25,19 @@ import { playAdd, playBank, playBust, playDouble, playSafeSeven, playWin, unlock
 
 const SESSION_KEY = "bank-table-session";
 
+/** Empty on the website (same origin). The iOS bundle sets this to the live site. */
+const API_BASE = String(import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
+function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof input === "string" && input.startsWith("/")) return fetch(`${API_BASE}${input}`, init);
+  return fetch(input, init);
+}
+
+function rpc<T extends object>(opts: T): T {
+  if (!API_BASE) return opts;
+  return { ...opts, fetch: apiFetch };
+}
+
 type Session = {
   role: "host" | "player";
   code: string;
@@ -143,7 +156,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       const session = get().session;
       if (!session) return;
       try {
-        const result = await fetchRoom({ data: { code: session.code, token: session.token } });
+        const result = await fetchRoom(rpc({ data: { code: session.code, token: session.token } }));
         if (get().session?.token !== session.token) return;
         applyResult(result, true);
       } catch {
@@ -160,9 +173,15 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       schedulePoll(200);
       return;
     }
-    const proto = location.protocol === "https:" ? "wss:" : "ws:";
     const q = new URLSearchParams({ code: session.code, token: session.token });
-    const ws = new WebSocket(`${proto}//${location.host}/api/table-ws?${q}`);
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    let wsUrl = `${proto}//${location.host}/api/table-ws?${q}`;
+    if (API_BASE) {
+      const base = new URL(API_BASE);
+      const wsProto = base.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${wsProto}//${base.host}/api/table-ws?${q}`;
+    }
+    const ws = new WebSocket(wsUrl);
     socket = ws;
     const opened = { ok: false };
     const giveUp = setTimeout(() => {
@@ -263,7 +282,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       if (!session || get().session) return;
       set({ session, busy: true });
       try {
-        const result = await fetchRoom({ data: { code: session.code, token: session.token } });
+        const result = await fetchRoom(rpc({ data: { code: session.code, token: session.token } }));
         if (!result.ok) {
           saveSession(null);
           set({ session: null, mode: null, busy: false, error: null });
@@ -284,7 +303,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       unlockAudio();
       set({ busy: true, error: null });
       try {
-        const result = await createRoom();
+        const result = await (API_BASE ? createRoom({ fetch: apiFetch }) : createRoom());
         if (!result.ok || !result.token) {
           set({ busy: false, error: result.ok ? "Could not open a table." : result.error });
           return;
@@ -308,7 +327,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       unlockAudio();
       set({ busy: true, error: null });
       try {
-        const result = await joinRoom({ data: { code, name } });
+        const result = await joinRoom(rpc({ data: { code, name } }));
         if (!result.ok || !result.token) {
           set({ busy: false, error: result.ok ? "Could not join." : result.error });
           return;
@@ -329,7 +348,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
     },
     setRounds: async (rounds) => {
       await hostCall((session) =>
-        setRoomRounds({ data: { code: session.code, token: session.token, rounds } }),
+        setRoomRounds(rpc({ data: { code: session.code, token: session.token, rounds } })),
       );
     },
     setDiceMode: (diceMode) => set({ diceMode }),
@@ -337,34 +356,34 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       unlockAudio();
       const diceMode = get().diceMode;
       await hostCall((session) =>
-        startRoom({ data: { code: session.code, token: session.token, diceMode } }),
+        startRoom(rpc({ data: { code: session.code, token: session.token, diceMode } })),
       );
     },
     roll: async (sum, doubles) => {
       unlockAudio();
       await hostCall((session) =>
-        hostRoll({ data: { code: session.code, token: session.token, sum, doubles } }),
+        hostRoll(rpc({ data: { code: session.code, token: session.token, sum, doubles } })),
       );
     },
     nextRoll: async () => {
-      await hostCall((session) => hostNextRoll({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostNextRoll(rpc({ data: { code: session.code, token: session.token } })));
     },
     startCountdown: async () => {
-      await hostCall((session) => hostCountdown({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostCountdown(rpc({ data: { code: session.code, token: session.token } })));
     },
     skip: async () => {
-      await hostCall((session) => hostSkip({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostSkip(rpc({ data: { code: session.code, token: session.token } })));
     },
     undo: async () => {
-      await hostCall((session) => hostUndo({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostUndo(rpc({ data: { code: session.code, token: session.token } })));
     },
     next: async () => {
-      await hostCall((session) => hostContinue({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostContinue(rpc({ data: { code: session.code, token: session.token } })));
     },
     bank: async (playerId) => {
       unlockAudio();
       await hostCall((session) =>
-        hostBank({ data: { code: session.code, token: session.token, playerId } }),
+        hostBank(rpc({ data: { code: session.code, token: session.token, playerId } })),
       );
     },
     bankSelf: async () => {
@@ -373,7 +392,7 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       unlockAudio();
       set({ busy: true, error: null });
       try {
-        const result = await playerBank({ data: { code: session.code, token: session.token } });
+        const result = await playerBank(rpc({ data: { code: session.code, token: session.token } }));
         if (result.ok) playBank();
         applyResult(result, false);
       } catch {
@@ -381,10 +400,10 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       }
     },
     rematch: async () => {
-      await hostCall((session) => hostRematch({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostRematch(rpc({ data: { code: session.code, token: session.token } })));
     },
     backToLobby: async () => {
-      await hostCall((session) => hostLobby({ data: { code: session.code, token: session.token } }));
+      await hostCall((session) => hostLobby(rpc({ data: { code: session.code, token: session.token } })));
     },
     leave: async () => {
       const session = get().session;
@@ -393,13 +412,13 @@ export const useRoomStore = create<RoomStore>((set, get) => {
       set({ session: null, snapshot: null, mode: null, flash: null, error: null, busy: false });
       if (session?.role === "host") {
         try {
-          await closeRoom({ data: { code: session.code, token: session.token } });
+          await closeRoom(rpc({ data: { code: session.code, token: session.token } }));
         } catch {
           /* already left locally */
         }
       } else if (session) {
         try {
-          await leaveRoom({ data: { code: session.code, token: session.token } });
+          await leaveRoom(rpc({ data: { code: session.code, token: session.token } }));
         } catch {
           /* already left locally */
         }
