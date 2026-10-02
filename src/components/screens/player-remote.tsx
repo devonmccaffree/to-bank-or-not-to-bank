@@ -3,6 +3,7 @@ import { BooCue } from "@/components/boo-cue";
 import { Countdown } from "@/components/countdown";
 import { nextActivePlayerId, playerName, winners } from "@/lib/game/engine";
 import { useRoomStore } from "@/lib/game/room-store";
+import { hapticBank } from "@/lib/native";
 import { cn } from "@/lib/utils";
 
 export function PlayerRemote() {
@@ -130,7 +131,10 @@ export function PlayerRemote() {
               "border border-border bg-faint! text-bg! opacity-100! shadow-none hover:bg-faint! disabled:bg-faint! disabled:text-bg! disabled:opacity-100!",
           )}
           disabled={!canBank}
-          onClick={() => void bankSelf()}
+          onClick={() => {
+            hapticBank();
+            void bankSelf();
+          }}
         >
           {banked ? "You’re out this round" : "BANK"}
         </Button>

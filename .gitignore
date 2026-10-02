@@ -3,3 +3,7 @@ node_modules/
 .github_repo
 .env
 .env.*
+
+# iOS app build output (npm run build:ios)
+dist-cap/
+.cap-build/

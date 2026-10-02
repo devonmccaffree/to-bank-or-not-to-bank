@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ShareTableButton } from "@/components/share-table-button";
 import { useRoomStore } from "@/lib/game/room-store";
 import type { DiceMode, RoundCount } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
@@ -24,9 +25,12 @@ export function HostLobby() {
         Close table
       </button>
       <p className="mt-6 text-kicker font-medium uppercase tracking-[0.22em] text-muted">Table code</p>
-      <p className="font-display mt-2 text-display font-medium tracking-[0.18em] tabular-nums">
-        {snapshot.code}
-      </p>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <p className="font-display text-display font-medium tracking-[0.18em] tabular-nums">
+          {snapshot.code}
+        </p>
+        <ShareTableButton code={snapshot.code} className="shrink-0" />
+      </div>
       <p className="mt-3 max-w-sm text-sm text-muted">
         Everyone else opens this on their phone, taps Join, and enters the code. When the game
         starts they tap BANK themselves.

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { BookOpen, Undo2, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { hapticBank } from "@/lib/native";
 import { BooCue } from "@/components/boo-cue";
 import { Countdown } from "@/components/countdown";
 import { DicePair } from "@/components/dice-pair";
@@ -410,6 +411,7 @@ export function PlayScreen() {
             onClick={() => {
               const id = pendingPlayer.id;
               setPendingBankId(null);
+              hapticBank();
               pickBanker(id);
             }}
           >

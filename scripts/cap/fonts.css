@@ -1,0 +1,16 @@
+/*
+ * App build (vite.config.cap.ts): bundled fonts instead of Google Fonts, so the
+ * iOS app renders the same type offline. Same families/axes as the Google
+ * Fonts link in src/routes/__root.tsx (DM Sans opsz+wght incl. italic,
+ * Fraunces opsz+wght). Fontsource names them "… Variable", so point the theme
+ * variables at those first; the plain names stay as fallbacks.
+ */
+@import "@fontsource-variable/dm-sans/opsz.css";
+@import "@fontsource-variable/dm-sans/opsz-italic.css";
+@import "@fontsource-variable/fraunces/opsz.css";
+
+:root,
+:host {
+  --font-sans: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces Variable", "Fraunces", ui-serif, Georgia, "Times New Roman", serif;
+}
